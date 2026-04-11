@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 
-// ─── GIST CONFIG ──────────────────────────────────────────────────────────────
-// Public sees delayed data. Add ?key=live to URL for real-time access.
-const GIST_BASE = "https://gist.githubusercontent.com/LedgerGuardian/8642d42f61a7302686730b95d2687275/raw/";
-const isLive = new URLSearchParams(window.location.search).get("key") === "live";
-const GIST_URL = GIST_BASE + (isLive ? "dashboard_data.json" : "dashboard_data_public.json");
+// ─── ACCESS TOKEN ─────────────────────────────────────────────────────────────
+// Gist URLs are never in the browser. All data flows through /api/* routes.
+// Paying users get a signed token (issued by /api/verify-payment after Stripe
+// checkout) stored in localStorage. No token = delayed public data.
+const TOKEN_KEY = "codex_access_token";
+const getToken = () => localStorage.getItem(TOKEN_KEY);
 
 const FALLBACK = {
   account: { equity: 0, cash: 0, buying_power: 0, start_equity: 100000, peak_equity: 0 },
@@ -97,7 +98,7 @@ function GaugeBar({ label, current, max, unit, danger }) {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // DASHBOARD
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-function Dashboard({ d, fetchError }) {
+function Dashboard({ d, fetchError, isLive }) {
   const totalPnl = d.account.equity - d.account.start_equity;
   const totalPnlPct = (totalPnl / d.account.start_equity) * 100;
   const dayPct = (d.day / d.target_days) * 100;
@@ -106,7 +107,7 @@ function Dashboard({ d, fetchError }) {
 
   return (
     <div>
-      {/* Delayed data banner (hidden for live key holders) */}
+      {/* Delayed data banner (hidden for paying users with a valid token) */}
       {!isLive && <div style={{ background: "#1a1400", border: "1px solid #3a3000", padding: "10px 16px", marginBottom: "20px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
         <span style={{ fontSize: "11px", color: "#aa8800", letterSpacing: "1px" }}>This dashboard shows data from the previous trading cycle (24h delay).</span>
         <a href="https://buy.stripe.com/aFa14o0bdfW82CQ1Owc7u01" style={{ fontSize: "10px", color: accent, letterSpacing: "1.5px", textTransform: "uppercase", textDecoration: "none", fontWeight: 700 }}>Get real-time access</a>
@@ -824,13 +825,55 @@ export default function App() {
   const [d, setD] = useState(FALLBACK);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
+  const [token, setToken] = useState(getToken);
 
+  const isLive = !!token;
+
+  // Exchange a Stripe checkout session ID for an access token (runs once on mount).
+  // Stripe redirects to /app?session={CHECKOUT_SESSION_ID} after payment.
   useEffect(() => {
-    fetch(GIST_URL + "?t=" + Date.now())
-      .then((r) => { if (!r.ok) throw new Error(r.statusText); return r.json(); })
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get("session");
+    if (!sessionId) return;
+
+    fetch("/api/verify-payment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.token) {
+          localStorage.setItem(TOKEN_KEY, data.token);
+          setToken(data.token);
+          // Remove ?session= from URL so it doesn't re-trigger on refresh
+          window.history.replaceState({}, "", "/app");
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Fetch dashboard data — public proxy for visitors, live proxy for paid users.
+  // Re-runs when token changes (e.g. immediately after payment verification).
+  useEffect(() => {
+    const t = getToken();
+    const url = t ? "/api/data-live" : "/api/data";
+    fetch(url + "?t=" + Date.now(), {
+      headers: t ? { Authorization: `Bearer ${t}` } : {},
+    })
+      .then((r) => {
+        if (r.status === 401) {
+          // Token rejected (expired or invalid) — clear it and fall back to public
+          localStorage.removeItem(TOKEN_KEY);
+          setToken(null);
+          throw new Error("Session expired. Showing public data.");
+        }
+        if (!r.ok) throw new Error(r.statusText);
+        return r.json();
+      })
       .then((data) => { setD(data); setLoading(false); })
       .catch((e) => { setFetchError(e.message); setLoading(false); });
-  }, []);
+  }, [token]);
 
   if (loading) {
     return (
@@ -844,7 +887,7 @@ export default function App() {
 
   const renderSection = () => {
     switch (active) {
-      case "dashboard": return <Dashboard d={d} fetchError={fetchError} />;
+      case "dashboard": return <Dashboard d={d} fetchError={fetchError} isLive={isLive} />;
       case "manifesto": return <Manifesto />;
       case "blueprint": return <Blueprint />;
       case "architecture": return <Architecture />;
