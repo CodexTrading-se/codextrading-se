@@ -12,7 +12,7 @@ const red = "#FF4444";
 const S = {
   page: { background: dim, color: "#e8e8e0", minHeight: "100vh", fontFamily: "'Courier New', monospace" },
   nav: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 36px", borderBottom: "1px solid #1a1a1a", position: "sticky", top: 0, background: dim, zIndex: 100 },
-  logo: { fontSize: "14px", fontWeight: 900, color: "#fff", letterSpacing: "2px", textTransform: "uppercase", textDecoration: "none" },
+  logo: { fontSize: "14px", fontWeight: 900, letterSpacing: "2px", textTransform: "uppercase", textDecoration: "none" },
   navLinks: { display: "flex", gap: "24px", alignItems: "center" },
   navLink: { fontSize: "11px", color: "#666", letterSpacing: "1.5px", textTransform: "uppercase", textDecoration: "none", transition: "color .2s" },
   ctaBtn: { display: "inline-block", padding: "10px 24px", background: accent, color: "#000", fontSize: "11px", fontWeight: 900, letterSpacing: "2px", textTransform: "uppercase", fontFamily: "'Courier New', monospace", textDecoration: "none", border: "none", cursor: "pointer", transition: "opacity .2s" },
@@ -340,7 +340,7 @@ export default function Landing() {
   return (
     <div style={S.page}>
       <nav style={S.nav}>
-        <Link to="/" style={S.logo}>⚡ Codex Trading</Link>
+        <Link to="/" style={S.logo}><span style={{ color: accent }}>CODEX</span><span style={{ color: "#fff" }}> TRADING</span></Link>
         <div style={S.navLinks}>
           <a href="#pricing" style={S.navLink}>Pricing</a>
           <Link to="/app" style={S.navLink}>Dashboard</Link>

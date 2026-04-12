@@ -6,7 +6,7 @@ const dim = "#0a0a0a";
 const S = {
   page: { background: dim, color: "#e8e8e0", minHeight: "100vh", fontFamily: "'Courier New', monospace" },
   nav: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 36px", borderBottom: "1px solid #1a1a1a" },
-  logo: { fontSize: "14px", fontWeight: 900, color: "#fff", letterSpacing: "2px", textTransform: "uppercase", textDecoration: "none" },
+  logo: { fontSize: "14px", fontWeight: 900, letterSpacing: "2px", textTransform: "uppercase", textDecoration: "none" },
   body: { padding: "60px 36px", maxWidth: "680px", margin: "0 auto" },
   h1: { fontSize: "28px", fontWeight: 900, color: "#fff", marginBottom: "12px" },
   tag: { display: "inline-block", background: "#111", border: "1px solid #2a2a2a", color: accent, fontSize: "8px", letterSpacing: "2px", padding: "2px 6px", textTransform: "uppercase", marginBottom: "16px" },
@@ -21,7 +21,7 @@ export default function Support() {
   return (
     <div style={S.page}>
       <nav style={S.nav}>
-        <Link to="/" style={S.logo}>⚡ Codex Trading</Link>
+        <Link to="/" style={S.logo}><span style={{ color: accent }}>CODEX</span><span style={{ color: "#fff" }}> TRADING</span></Link>
         <Link to="/" style={{ fontSize: "11px", color: "#666", letterSpacing: "1.5px", textTransform: "uppercase", textDecoration: "none" }}>← Back</Link>
       </nav>
 
