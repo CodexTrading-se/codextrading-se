@@ -817,7 +817,7 @@ const tabs = [
   { id: "blueprint", label: "Blueprint" },
   { id: "architecture", label: "Architecture" },
   { id: "action", label: "Action Plan" },
-  { id: "waitlist", label: "⚡ Early Access" },
+  { id: "waitlist", label: "Early Access" },
 ];
 
 export default function App() {
