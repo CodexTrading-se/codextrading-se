@@ -20,6 +20,7 @@ const FALLBACK = {
   performance: { total_trades: 0, wins: 0, losses: 0, open: 0, win_rate: null, avg_r_multiple: null, total_pnl: 0, best_trade: null, worst_trade: null },
   top_disclosures: [],
   graduation: {},
+  benchmark: null,
 };
 
 // ─── PALETTE ──────────────────────────────────────────────────────────────────
@@ -95,6 +96,48 @@ function GaugeBar({ label, current, max, unit, danger }) {
   );
 }
 
+function EquityChart({ curve }) {
+  if (!curve || curve.length < 2) return null;
+  const W = 600, H = 200, padL = 56, padR = 12, padT = 18, padB = 28;
+  const innerW = W - padL - padR;
+  const innerH = H - padT - padB;
+
+  const values = curve.flatMap(p => [p.bot, p.spy]);
+  const minV = Math.min(...values);
+  const maxV = Math.max(...values);
+  const span = (maxV - minV) || 1;
+  const yMin = minV - span * 0.05;
+  const yMax = maxV + span * 0.05;
+
+  const x = (i) => padL + (i / (curve.length - 1)) * innerW;
+  const y = (v) => padT + (1 - (v - yMin) / (yMax - yMin)) * innerH;
+  const path = (key) => curve.map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(p[key]).toFixed(1)}`).join(" ");
+
+  const yTicks = [yMin, (yMin + yMax) / 2, yMax];
+  const fmtTick = (v) => `$${Math.round(v).toLocaleString()}`;
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: "100%", height: "200px", display: "block" }}>
+      {yTicks.map((v, i) => (
+        <g key={i}>
+          <line x1={padL} y1={y(v)} x2={W - padR} y2={y(v)} stroke="#1a1a1a" strokeDasharray="2,3" />
+          <text x={padL - 6} y={y(v) + 3} textAnchor="end" fontSize="9" fill="#444" fontFamily="'Courier New', monospace">{fmtTick(v)}</text>
+        </g>
+      ))}
+      <text x={padL} y={H - 8} fontSize="9" fill="#444" fontFamily="'Courier New', monospace">{curve[0].date}</text>
+      <text x={W - padR} y={H - 8} textAnchor="end" fontSize="9" fill="#444" fontFamily="'Courier New', monospace">{curve[curve.length - 1].date}</text>
+      <path d={path("spy")} fill="none" stroke="#666" strokeWidth="1.5" />
+      <path d={path("bot")} fill="none" stroke={accent} strokeWidth="1.5" />
+      <g transform={`translate(${padL + 8}, ${padT - 8})`}>
+        <line x1="0" y1="6" x2="14" y2="6" stroke={accent} strokeWidth="1.5" />
+        <text x="18" y="9" fontSize="9" fill="#888" fontFamily="'Courier New', monospace">BOT</text>
+        <line x1="50" y1="6" x2="64" y2="6" stroke="#666" strokeWidth="1.5" />
+        <text x="68" y="9" fontSize="9" fill="#888" fontFamily="'Courier New', monospace">SPY</text>
+      </g>
+    </svg>
+  );
+}
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // DASHBOARD
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -139,6 +182,21 @@ function Dashboard({ d, fetchError, isLive }) {
         <Metric label="Cash" value={fmtUsd(d.account.cash)} />
         <Metric label="Buying Power" value={fmtUsd(d.account.buying_power)} />
       </div>
+
+      {/* Benchmark vs SPY */}
+      {d.benchmark && (
+        <>
+          <div style={S.tag}>Performance vs SPY</div>
+          <div style={S.grid}>
+            <Metric label="Bot Return" value={fmtPct(d.benchmark.bot_return_pct)} color={pnlColor(d.benchmark.bot_return_pct)} sub={`since ${d.benchmark.anchor_date}`} />
+            <Metric label="SPY Return" value={fmtPct(d.benchmark.spy_return_pct)} color={pnlColor(d.benchmark.spy_return_pct)} sub={`since ${d.benchmark.anchor_date}`} />
+            <Metric label="Alpha" value={fmtPct(d.benchmark.alpha_pct)} color={pnlColor(d.benchmark.alpha_pct)} sub="Bot − SPY" />
+          </div>
+          <div style={S.card}>
+            <EquityChart curve={d.benchmark.equity_curve} />
+          </div>
+        </>
+      )}
 
       {/* Today's Cycle */}
       <div style={S.tag}>Today's Cycle</div>
